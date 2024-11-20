@@ -1,0 +1,26 @@
+EntryWindow {
+    background: $boost;
+    height: 5;
+    margin: 1;
+    min-width: 50;
+    padding: 1;
+}
+
+#prompt {
+	width: 0.5fr;
+}
+
+#value {
+	width: 0.5fr;
+	# align: center middle;
+	text-align: center;
+}
+
+.box {
+	height: 0.4fr;
+    width: 1fr;
+    border: solid green;
+    padding: 1;
+    align: center middle;
+	# justify-content: space-around;
+}
