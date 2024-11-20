@@ -6,6 +6,7 @@ from textual.validation import Validator, ValidationResult
 
 from typing import Literal, List, Dict
 from pathlib import Path
+import subprocess
 import yaml
 
 
@@ -138,14 +139,45 @@ class CondorTUI(App):
         )
 
     def _get_basic_options_scroll(self):
-        conda_window = EntryWindow(
-            hint="conda environment",
-            condor_command="file",
+
+        # Try to find the users current conda.sh script
+        try:
+            conda_sh_path = subprocess.check_output(
+                "ls $(conda info --base)/etc/profile.d/conda.sh",
+                shell=True,
+                text=True  # Ensures output is a string
+            ).strip()
+        except subprocess.CalledProcessError as _:
+            conda_sh_path = None
+
+        # Try to find the users current conda environment
+        try:
+            current_env = subprocess.check_output(
+                ["conda", "env", "list"], text=True
+            )
+            for line in current_env.splitlines():
+                if "*" in line:
+                    active_env = line.split()[0]
+                    break
+            else:
+                active_env = "base"  # Default to 'base' if no active environment is found
+        except subprocess.CalledProcessError as _:
+            active_env = None
+    
+        conda_sh_window = EntryWindow(
+            hint="conda sh file",
+            condor_command="source_file",
             input_type="text",
-            value="job",
+            value=conda_sh_path,
+        )
+        conda_env_window = EntryWindow(
+            hint="conda environment",
+            condor_command="conda_env",
+            input_type="text",
+            value=active_env,
         )
         return VerticalScroll(
-            *(self._load_yaml("condor_options/basic_options.yaml") + [conda_window])
+            *(self._load_yaml("condor_options/basic_options.yaml") + [conda_sh_window, conda_env_window])
         )
 
 
