@@ -1,11 +1,12 @@
 from textual import on
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, Input, Label
+from textual.widgets import Header, Footer, Input, Label, TabbedContent, TabPane
 from textual.containers import HorizontalGroup, VerticalScroll
 from textual.validation import Validator, ValidationResult
 
-from typing import Literal
+from typing import Literal, List, Dict
 from pathlib import Path
+import yaml
 
 
 class FileValidator(Validator):
@@ -14,7 +15,11 @@ class FileValidator(Validator):
         I hate that I can't just use a lambda lol
         #OOP_Gang
         """
-        return self.success() if Path(x).exists() else self.failure("File not found.")
+        return (
+            self.success()
+            if Path(x).exists()
+            else self.failure(f'File "{x}" not found.')
+        )
 
 
 class EntryWindow(HorizontalGroup):
@@ -63,6 +68,8 @@ class EntryWindow(HorizontalGroup):
             self.value = event.value
         self.label.update(
             f"{self.condor_command}: {self.value if self.value else 'None'}"
+            if self.input.is_valid
+            else f"{self.condor_command}\n{event.validation_result.failures[-1].description}"
         )
 
 
@@ -71,75 +78,74 @@ class CondorTUI(App):
     CSS_PATH = "css/peacock.tcss"
 
     BINDINGS = [
-        ("d", "action_toggle_dark", "Toggle dark mode"),
         ("q", "quit", "Quit"),
-        ("a", "advanced_options", "Advanced options"),
+        ("b", "show_tab('basic')", "basic"),
+        ("a", "show_tab('advanced')", "advanced"),
         ("s", "save", "save"),
     ]
 
+    TITLE = "peacock"
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.theme = "textual-light"
-        self.vertical_scroll = self._get_vertical_scroll()
+        self.theme = "textual-dark"
+        self.basic_options_scroll = self._get_basic_options_scroll()
+        self.advanced_options_scroll = self._get_advanced_options_scroll()
 
-        class Dummy:
-            children = []
-
-        self.advanced_options = Dummy()
+        self.header = Header(icon="🦚")
 
     def compose(self) -> ComposeResult:
-        yield Header()
-        yield self.vertical_scroll
+        yield self.header
+        with TabbedContent(initial="basic"):
+            with TabPane("basic options", id="basic"):
+                yield self.basic_options_scroll
+            with TabPane("advanced options", id="advanced"):
+                yield self.advanced_options_scroll
         yield Footer()
-
-    def action_toggle_dark(
-        self,
-    ) -> None:
-        self.theme = (
-            "textual-dark" if self.theme == "textual-light" else "textual-light"
-        )
 
     def action_save(
         self,
     ) -> None:
-        with open(f"{self.vertical_scroll.children[0].value}.job", "w") as f:
-            for entry_window in (
-                self.vertical_scroll.children # + self.advanced_options.children
-            ):
+        with open(f"{self.basic_options_scroll.children[0].value}.job", "w") as f:
+            for (
+                entry_window
+            ) in self.basic_options_scroll.children:  # + self.advanced_options.children
                 f.write(f"{entry_window.condor_command}={entry_window.value}\n")
 
-    def _get_vertical_scroll(self):
+    def action_show_tab(self, tab: str) -> None:
+        """Switch to a new tab."""
+        self.get_child_by_type(TabbedContent).active = tab
+
+
+    def _load_yaml(self, file: str) -> List[Dict[str, str]]:
+        entry_windows = []
+        with open(file, 'r') as f:
+            data = yaml.safe_load(f)
+            for entry in data:
+                entry_windows.append(
+                    EntryWindow(
+                        hint=entry["hint"],
+                        condor_command=entry["condor_command"],
+                        input_type=entry["input_type"],
+                        value=entry["value"]
+                    )
+                )
+        return entry_windows
+
+    def _get_advanced_options_scroll(self):
         return VerticalScroll(
-            EntryWindow(
-                hint="name of job",
-                condor_command="name",
-                input_type="text",
-                value="job",
-            ),
-            EntryWindow(
-                hint="file to run",
-                condor_command="executable",
-                input_type="file",
-                value=None,
-            ),
-            EntryWindow(
-                hint="num cpus",
-                condor_command="request_cpus",
-                input_type="integer",
-                value=1,
-            ),
-            EntryWindow(
-                hint="num gpus",
-                condor_command="request_gpus",
-                input_type="integer",
-                value=1,
-            ),
-            EntryWindow(
-                hint="max jobs",
-                condor_command="queue",
-                input_type="integer",
-                value=1,
-            ),
+            *self._load_yaml("condor_options/advanced_options.yaml")
+        )
+
+    def _get_basic_options_scroll(self):
+        conda_window = EntryWindow(
+            hint="conda environment",
+            condor_command="file",
+            input_type="text",
+            value="job",
+        )
+        return VerticalScroll(
+            *(self._load_yaml("condor_options/basic_options.yaml") + [conda_window])
         )
 
 

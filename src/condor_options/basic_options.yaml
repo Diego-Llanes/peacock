@@ -1,0 +1,19 @@
+- hint: "name of job"
+  condor_command: "name"
+  input_type: "text"
+  value: "job"
+
+- hint: "file to run"
+  condor_command: "executable"
+  input_type: "file"
+  value: null
+
+- hint: "num cpus"
+  condor_command: "request_cpus"
+  input_type: "integer"
+  value: 1
+
+- hint: "num gpus"
+  condor_command: "request_gpus"
+  input_type: "integer"
+  value: 1

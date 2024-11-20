@@ -1,9 +1,10 @@
 EntryWindow {
     background: $boost;
-    height: 5;
+    height: 7;
     margin: 1;
     min-width: 50;
     padding: 1;
+	align: center middle;
 }
 
 #prompt {

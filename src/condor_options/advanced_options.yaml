@@ -1,0 +1,4 @@
+- hint: "max jobs"
+  condor_command: "queue"
+  input_type: "integer"
+  value: 1
