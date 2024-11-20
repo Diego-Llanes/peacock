@@ -68,7 +68,7 @@ class EntryWindow(HorizontalGroup):
 
 class CondorTUI(App):
 
-    CSS_PATH = "condor.tcss"
+    CSS_PATH = "css/peacock.tcss"
 
     BINDINGS = [
         ("d", "action_toggle_dark", "Toggle dark mode"),
