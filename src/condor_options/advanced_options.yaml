@@ -1,7 +1,7 @@
 - hint: "max jobs"
   condor_command: "queue"
   input_type: "integer"
-  value: 1
+  value: null
 
 - hint: "environment"
   condor_command: "environment"
@@ -41,10 +41,9 @@
 - hint: "job priority"
   condor_command: "priority"
   input_type: "integer"
-  value: 0
+  value: null
 
 - hint: "copy current environment"
   condor_command: "getenv"
   input_type: "bool"
   value: null
-

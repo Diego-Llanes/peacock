@@ -8,6 +8,7 @@ from typing import Literal, List, Dict
 from pathlib import Path
 import subprocess
 import yaml
+from itertools import chain
 
 
 class FileValidator(Validator):
@@ -113,9 +114,13 @@ class Peacock(App):
         ("b", "show_tab('basic')", "basic"),
         ("a", "show_tab('advanced')", "advanced"),
         ("s", "save", "save"),
+        ("S", "submit", "submit"),
+
     ]
 
     TITLE = "peacock"
+
+    NOTIFICATION_TIMEOUT = 3
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -137,18 +142,24 @@ class Peacock(App):
     def action_save(
         self,
     ) -> None:
-        with open(f"{self.basic_options_scroll.children[0].value}.job", "w") as f:
-            for (
-                entry_window
-            ) in (
-                self.basic_options_scroll.children
-            ):  # + self.advanced_options.children:
+        # The first entry window *SHOULD* is the name of the job
+        name = self.basic_options_scroll.children[0].value
+        name = name if name else "condor"
+        with open(f"{name}.job", "w") as f:
+            for entry_window in chain(
+                    self.basic_options_scroll.children,
+                    self.advanced_options_scroll.children
+                    ):
                 if entry_window.value:
                     f.write(f"{entry_window.condor_command}={entry_window.value}\n")
+        self.notify(f"Saved to {name}.job")
 
     def action_show_tab(self, tab: str) -> None:
         """Switch to a new tab."""
         self.get_child_by_type(TabbedContent).active = tab
+
+    def action_submit(self) -> None:
+        pass
 
     def _load_yaml(self, file: str) -> List[Dict[str, str]]:
         entry_windows = []
@@ -206,7 +217,7 @@ class Peacock(App):
         return VerticalScroll(
             *(
                 self._load_yaml("condor_options/basic_options.yaml")
-                + [conda_sh_window, conda_env_window]
+                # + [conda_sh_window, conda_env_window] # uncomment to add conda options
             )
         )
 
