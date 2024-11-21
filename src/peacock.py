@@ -1,6 +1,6 @@
 from textual import on
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, Input, Label, TabbedContent, TabPane
+from textual.widgets import Header, Footer, Input, Label, TabbedContent, TabPane, Select
 from textual.containers import HorizontalGroup, VerticalScroll
 from textual.validation import Validator, ValidationResult
 
@@ -23,6 +23,19 @@ class FileValidator(Validator):
         )
 
 
+class BoolValidator(Validator):
+    def validate(self, x: str) -> ValidationResult:
+        """
+        I hate that I can't just use a lambda lol
+        #OOP_Gang
+        """
+        return (
+            self.success()
+            if x.lower() in ["true", "false", "1", "0", "t", "f"]
+            else self.failure(f'Bool "{x}" not found.')
+        )
+
+
 class EntryWindow(HorizontalGroup):
 
     def __init__(
@@ -30,8 +43,11 @@ class EntryWindow(HorizontalGroup):
         hint: str,
         condor_command: str,
         value: str = None,
-        input_type: Literal["text", "integer", "number", "file"] = "text",
+        input_type: Literal[
+            "text", "integer", "number", "file", "bool", "choice"
+        ] = "text",
         validators: callable = None,
+        options: List[str] = None,
     ) -> None:
         super().__init__()
         self.hint = hint
@@ -47,12 +63,26 @@ class EntryWindow(HorizontalGroup):
             # just a way to check if the user hands us a real file
             validators.append(FileValidator())
 
-        self.input = Input(
-            placeholder=self.hint,
-            id="prompt",
-            type=_input_type,
-            validators=validators,
-        )
+        if input_type == "bool":
+            _input_type = "text"
+            if validators is None:
+                validators = []
+            validators.append(BoolValidator())
+
+        if input_type == "choice":
+            assert options is not None, f"{self.hint} needs options"
+            self.input = Select(
+                options=[(option, option) for option in options],
+                id="prompt",
+            )
+        else:
+            self.input = Input(
+                placeholder=self.hint,
+                id="prompt",
+                type=_input_type,
+                validators=validators,
+            )
+
         self.label = Label(
             f"{self.condor_command}: {self.value if self.value else 'None'}", id="value"
         )
@@ -74,7 +104,7 @@ class EntryWindow(HorizontalGroup):
         )
 
 
-class CondorTUI(App):
+class Peacock(App):
 
     CSS_PATH = "css/peacock.tcss"
 
@@ -110,17 +140,19 @@ class CondorTUI(App):
         with open(f"{self.basic_options_scroll.children[0].value}.job", "w") as f:
             for (
                 entry_window
-            ) in self.basic_options_scroll.children:  # + self.advanced_options.children
-                f.write(f"{entry_window.condor_command}={entry_window.value}\n")
+            ) in (
+                self.basic_options_scroll.children
+            ):  # + self.advanced_options.children:
+                if entry_window.value:
+                    f.write(f"{entry_window.condor_command}={entry_window.value}\n")
 
     def action_show_tab(self, tab: str) -> None:
         """Switch to a new tab."""
         self.get_child_by_type(TabbedContent).active = tab
 
-
     def _load_yaml(self, file: str) -> List[Dict[str, str]]:
         entry_windows = []
-        with open(file, 'r') as f:
+        with open(file, "r") as f:
             data = yaml.safe_load(f)
             for entry in data:
                 entry_windows.append(
@@ -128,42 +160,37 @@ class CondorTUI(App):
                         hint=entry["hint"],
                         condor_command=entry["condor_command"],
                         input_type=entry["input_type"],
-                        value=entry["value"]
+                        value=entry["value"],
+                        options=entry.get("options", None),
                     )
                 )
         return entry_windows
 
     def _get_advanced_options_scroll(self):
-        return VerticalScroll(
-            *self._load_yaml("condor_options/advanced_options.yaml")
-        )
+        return VerticalScroll(*self._load_yaml("condor_options/advanced_options.yaml"))
 
     def _get_basic_options_scroll(self):
 
         # Try to find the users current conda.sh script
         try:
             conda_sh_path = subprocess.check_output(
-                "ls $(conda info --base)/etc/profile.d/conda.sh",
-                shell=True,
-                text=True  # Ensures output is a string
+                "ls $(conda info --base)/etc/profile.d/conda.sh", shell=True, text=True
             ).strip()
         except subprocess.CalledProcessError as _:
             conda_sh_path = None
 
         # Try to find the users current conda environment
         try:
-            current_env = subprocess.check_output(
-                ["conda", "env", "list"], text=True
-            )
+            current_env = subprocess.check_output(["conda", "env", "list"], text=True)
             for line in current_env.splitlines():
                 if "*" in line:
                     active_env = line.split()[0]
                     break
             else:
-                active_env = "base"  # Default to 'base' if no active environment is found
+                active_env = "base"
         except subprocess.CalledProcessError as _:
             active_env = None
-    
+
         conda_sh_window = EntryWindow(
             hint="conda sh file",
             condor_command="source_file",
@@ -177,10 +204,13 @@ class CondorTUI(App):
             value=active_env,
         )
         return VerticalScroll(
-            *(self._load_yaml("condor_options/basic_options.yaml") + [conda_sh_window, conda_env_window])
+            *(
+                self._load_yaml("condor_options/basic_options.yaml")
+                + [conda_sh_window, conda_env_window]
+            )
         )
 
 
 if __name__ == "__main__":
-    app = CondorTUI()
+    app = Peacock()
     app.run()

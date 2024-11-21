@@ -2,3 +2,49 @@
   condor_command: "queue"
   input_type: "integer"
   value: 1
+
+- hint: "environment"
+  condor_command: "environment"
+  input_type: "text"
+  value: null
+
+- hint: "input file"
+  condor_command: "input"
+  input_type: "file"
+  value: null
+
+- hint: "execution universe"
+  condor_command: "universe"
+  input_type: "choice"
+  value: null
+  options:
+  - vanilla 
+  - scheduler 
+  - local 
+  - grid 
+  - java 
+  - vm 
+  - parallel 
+  - docker 
+  - container
+
+- hint: "max materialized jobs"
+  condor_command: "max_materialize"
+  input_type: "integer"
+  value: null
+
+- hint: "max idle jobs"
+  condor_command: "max_idle"
+  input_type: "integer"
+  value: null
+
+- hint: "job priority"
+  condor_command: "priority"
+  input_type: "integer"
+  value: 0
+
+- hint: "copy current environment"
+  condor_command: "getenv"
+  input_type: "bool"
+  value: null
+

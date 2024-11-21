@@ -1,19 +1,51 @@
-- hint: "name of job"
-  condor_command: "name"
+- hint: "batch name"
+  condor_command: "batch_name"
   input_type: "text"
-  value: "job"
+  value: null
 
-- hint: "file to run"
+- hint: "executable file"
   condor_command: "executable"
   input_type: "file"
   value: null
 
-- hint: "num cpus"
-  condor_command: "request_cpus"
-  input_type: "integer"
-  value: 1
+- hint: "cli arguments"
+  condor_command: "arguments"
+  input_type: "text"
+  value: null
 
-- hint: "num gpus"
-  condor_command: "request_gpus"
+- hint: "num jobs"
+  condor_command: "queue"
   input_type: "integer"
-  value: 1
+  value: null
+
+- hint: "log file"
+  condor_command: "log"
+  input_type: "file"
+  value: "logs/log.$(clusterid).$(procid).txt"
+
+- hint: "error file"
+  condor_command: "error"
+  input_type: "file"
+  value: "logs/error.$(clusterid).$(procid).txt"
+
+- hint: "output file"
+  condor_command: "output"
+  input_type: "file"
+  value: "logs/out.$(clusterid).$(procid).txt"
+
+- hint: "notification preference"
+  condor_command: "notification"
+  input_type: "choice"
+  options:
+    - Always
+    - Complete
+    - Error
+    - Never
+  value: null
+
+- hint: "notify user email"
+  condor_command: "notify_user"
+  input_type: "text"
+  value: null
+
+
