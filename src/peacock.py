@@ -10,6 +10,8 @@ import subprocess
 import yaml
 from itertools import chain
 
+# import htcondor
+# import classad
 
 class FileValidator(Validator):
     def validate(self, x: str) -> ValidationResult:
@@ -154,12 +156,23 @@ class Peacock(App):
                     f.write(f"{entry_window.condor_command}={entry_window.value}\n")
         self.notify(f"Saved to {name}.job")
 
+    # def action_submit(self) -> None:
+    #     # The first entry window *SHOULD* is the name of the job
+    #     name = self.basic_options_scroll.children[0].value
+    #     name = name if name else "condor"
+    #     job = {}
+    #     for entry_window in chain(
+    #             self.basic_options_scroll.children,
+    #             self.advanced_options_scroll.children
+    #             ):
+    #         if entry_window.value:
+    #             job[entry_window.condor_command] = str(entry_window.value)
+    #     
+    #     self.notify(f"Submitted to {name} to the condor queue!")
+
     def action_show_tab(self, tab: str) -> None:
         """Switch to a new tab."""
         self.get_child_by_type(TabbedContent).active = tab
-
-    def action_submit(self) -> None:
-        pass
 
     def _load_yaml(self, file: str) -> List[Dict[str, str]]:
         entry_windows = []
