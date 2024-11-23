@@ -99,6 +99,11 @@ class EntryWindow(HorizontalGroup):
         yield self.input
         yield self.label
 
+    def update_value(self) -> None:
+        self.label.update(
+            f"{self.condor_command}: {self.value if self.value else 'None'}"
+        )
+
     @on(Input.Submitted)
     def save_args(self, event: Input.Submitted) -> None:
         if self.input_type == "file":
@@ -127,7 +132,7 @@ class Peacock(App):
 
     TITLE = "peacock"
 
-    NOTIFICATION_TIMEOUT = 3
+    NOTIFICATION_TIMEOUT = 5
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -138,15 +143,24 @@ class Peacock(App):
         self.header = Header(icon="🦚")
 
         self.defaults = None
-        config = self._get_config()
+        self.config = self._get_config()
+
+    def on_mount(self) -> None:
+        config = self.config
 
         for key, value in config.items():
             if key == "theme":
-                self.theme = f"textual-{value}"
+                self.theme = value
             elif key == "primary_default":
-                self.defaults = config.get(value, None)
-                if not self.defaults:
-                    self.notify(f"Primary default \"{value}\" not found in config file, not using specified defaults", severity="error")
+                # allow the user to reference sub-dictionaries in the config file split by a period
+                primary_default_name = value
+                sub_dict = value.split(".")
+                temp_dict = config
+                for sub_key in sub_dict:
+                    temp_dict = temp_dict.get(sub_key, None)
+                    if not temp_dict:
+                        self.notify(f"Primary default \"{primary_default_name}\" not found in config file, not using specified defaults", severity="error")
+                self.defaults = temp_dict
 
         # if the user specifies a default to use from the command line,
         # prioritize that over the config file primary default
@@ -159,8 +173,9 @@ class Peacock(App):
                 self.notify(f"Default \"{sys.argv[1]}\" not found in config file, not using specified defaults", severity="error")
         elif len(sys.argv) > 2:
             self.notify("Too many arguments, ignoring all but the first", severity="error")
+        elif len(sys.argv) == 1 and self.defaults:
+            self.notify(f"Using primary default \"{primary_default_name}\"")
 
-        # FIXME: for some reason the chain of these two is empty
         if self.defaults:
             for entry_window in chain(
                     self.basic_options_scroll.children,
@@ -168,6 +183,7 @@ class Peacock(App):
                     ):
                 if entry_window.condor_command in self.defaults.keys():
                     entry_window.value = self.defaults[entry_window.condor_command]
+                    entry_window.update_value()
 
     def compose(self) -> ComposeResult:
         yield self.header
