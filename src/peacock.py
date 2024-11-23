@@ -132,6 +132,8 @@ class Peacock(App):
 
     NOTIFICATION_TIMEOUT = 5
 
+    queue: reactive[List[Dict[str, str]]] = reactive(lambda: [{}])
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.theme = "textual-dark"
@@ -143,12 +145,20 @@ class Peacock(App):
         self.advanced_options_scroll = VerticalScroll(
             *self._load_yaml(CONDOR_OPTIONS / "advanced_options.yaml")
         )
-        self.queue = reactive(self.get_queue_state, recompose=True)
 
         self.header = Header(icon="🦚")
 
         self.defaults = None
         self.config = self._get_config()
+
+    def watch_queue(self) -> None:
+        """Update the queue UI when `queue` changes."""
+        queue_tab = self.query_one("#queue", VerticalScroll)
+        # TODO: In the future, we should not remove it if it's the same job
+        for child in list(queue_tab.children):
+            child.remove()
+        for job in self.queue:
+            queue_tab.mount(Label(",".join(f"{k}: {v}" for k, v in job.items())))
 
     def update_time(self) -> None:
         self.queue = self.get_queue_state()
@@ -222,10 +232,15 @@ class Peacock(App):
                 yield self.basic_options_scroll
             with TabPane("advanced options", id="advanced"):
                 yield self.advanced_options_scroll
-            with TabPane("queue", id="queue"):
+            with TabPane("queue", id="queue_tab"):
                 yield VerticalScroll(
-                    *[Label(f"{key}: {value}") for key, value in self.queue.items()]
+                    *[Label("Loading queue...")], id="queue"  # Default placeholder
                 )
+            # with TabPane("queue", id="queue_tab"):
+            #     yield VerticalScroll(
+            #         *[Label(",".join([f"{k}: {v}" for k,v in job.items()])) for job in self.queue],
+            #         id="queue"
+            #     )
         yield Footer()
 
     def get_queue_state(self) -> None:
