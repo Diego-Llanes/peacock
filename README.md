@@ -9,11 +9,18 @@ All that this package offers is write (and in the future possibly submit) your C
 ![demo of peacock](figs/peacock.svg "peacock demo")
 
 ## Installation
+To install this package simply clone it and pip install it!
+```bash
+$ git clone https://github.com/Diego-Llanes/peacock.git
+$ cd peacock
+$ pip install .
+$ echo "wow that was easy!"
+```
 
-...
-
-This will be through pip in the future, and will be accessible as a module.
-But this is still in its early development, if you wish to access it simply clone this repo and run `python src/peacock.py` to get started.
+## Usage
+Once installed you can call it anywhere from the command line by simply calling `peacock`.
+If you want specific defaults to always be populated, you can specify them in your config file, which you will need to [configure](#Configuration).
+Once you have these defaults specified, you use them by calling `peacock [name of your default]`.
 
 ## Configuration
 To configure this tool you need to have `config.toml` your `~/.config/peacock/` directory.
