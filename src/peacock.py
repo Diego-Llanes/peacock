@@ -10,8 +10,11 @@ import subprocess
 import yaml
 from itertools import chain
 
-# import htcondor
-# import classad
+import htcondor
+import classad
+
+CONDOR_OPTIONS = Path(__file__).parent / "condor_options"
+
 
 class FileValidator(Validator):
     def validate(self, x: str) -> ValidationResult:
@@ -127,6 +130,7 @@ class Peacock(App):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.theme = "textual-dark"
+        self.schedd = htcondor.Schedd()
         self.basic_options_scroll = self._get_basic_options_scroll()
         self.advanced_options_scroll = self._get_advanced_options_scroll()
 
@@ -156,19 +160,23 @@ class Peacock(App):
                     f.write(f"{entry_window.condor_command}={entry_window.value}\n")
         self.notify(f"Saved to {name}.job")
 
-    # def action_submit(self) -> None:
-    #     # The first entry window *SHOULD* is the name of the job
-    #     name = self.basic_options_scroll.children[0].value
-    #     name = name if name else "condor"
-    #     job = {}
-    #     for entry_window in chain(
-    #             self.basic_options_scroll.children,
-    #             self.advanced_options_scroll.children
-    #             ):
-    #         if entry_window.value:
-    #             job[entry_window.condor_command] = str(entry_window.value)
-    #     
-    #     self.notify(f"Submitted to {name} to the condor queue!")
+    def action_submit(self) -> None:
+        # The first entry window *SHOULD* is the name of the job
+        name = self.basic_options_scroll.children[0].value
+        name = name if name else "condor"
+        job = {}
+        for entry_window in chain(
+                self.basic_options_scroll.children,
+                self.advanced_options_scroll.children
+                ):
+            if entry_window.value:
+                job[entry_window.condor_command] = str(entry_window.value)
+        hostname_job = htcondor.Submit(job)
+        schedd_return: int = self.schedd.submit(hostname_job)
+        if schedd_return:
+            self.notify(f"Error submitting to {name} to the condor queue!")
+        else:
+            self.notify(f"Submitted to {name} to the condor queue!")
 
     def action_show_tab(self, tab: str) -> None:
         """Switch to a new tab."""
@@ -191,7 +199,7 @@ class Peacock(App):
         return entry_windows
 
     def _get_advanced_options_scroll(self):
-        return VerticalScroll(*self._load_yaml("condor_options/advanced_options.yaml"))
+        return VerticalScroll(*self._load_yaml(CONDOR_OPTIONS / "advanced_options.yaml"))
 
     def _get_basic_options_scroll(self):
 
@@ -229,7 +237,7 @@ class Peacock(App):
         )
         return VerticalScroll(
             *(
-                self._load_yaml("condor_options/basic_options.yaml")
+                self._load_yaml(CONDOR_OPTIONS / "basic_options.yaml")
                 # + [conda_sh_window, conda_env_window] # uncomment to add conda options
             )
         )
