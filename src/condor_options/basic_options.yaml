@@ -21,17 +21,17 @@
 - hint: "log file"
   condor_command: "log"
   input_type: "file"
-  value: "logs/log.$(clusterid).$(procid).txt"
+  value: null
 
 - hint: "error file"
   condor_command: "error"
   input_type: "file"
-  value: "logs/error.$(clusterid).$(procid).txt"
+  value: null
 
 - hint: "output file"
   condor_command: "output"
   input_type: "file"
-  value: "logs/out.$(clusterid).$(procid).txt"
+  value: null
 
 - hint: "notification preference"
   condor_command: "notification"

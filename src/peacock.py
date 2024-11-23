@@ -3,6 +3,7 @@ from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer, Input, Label, TabbedContent, TabPane, Select
 from textual.containers import HorizontalGroup, VerticalScroll
 from textual.validation import Validator, ValidationResult
+from textual.reactive import reactive
 
 from typing import Literal, List, Dict
 from pathlib import Path
@@ -142,9 +143,7 @@ class Peacock(App):
         self.advanced_options_scroll = VerticalScroll(
             *self._load_yaml(CONDOR_OPTIONS / "advanced_options.yaml")
         )
-        self.queue_scroll = VerticalScroll(
-            *self.get_queue_state()
-        )
+        self.queue = reactive(self.get_queue_state, recompose=True)
 
         self.header = Header(icon="🦚")
 
@@ -152,7 +151,7 @@ class Peacock(App):
         self.config = self._get_config()
 
     def update_time(self) -> None:
-        self.queue_scroll = self.get_queue_state()
+        self.queue = self.get_queue_state()
 
     def on_mount(self) -> None:
         config = self.config
@@ -224,19 +223,19 @@ class Peacock(App):
             with TabPane("advanced options", id="advanced"):
                 yield self.advanced_options_scroll
             with TabPane("queue", id="queue"):
-                yield self.queue_scroll
+                yield VerticalScroll(
+                    *[Label(f"{key}: {value}") for key, value in self.queue.items()]
+                )
         yield Footer()
 
     def get_queue_state(self) -> None:
-        return [
-            Label(str(row), id="queue_entry") for row in self.schedd.query(
-                projection=[
-                    "Owner",
-                    "JobStatus",
-                    "ClusterId",
-                ]
-            )
-        ]
+        return self.schedd.query(
+            projection=[
+                "Owner",
+                "JobStatus",
+                "ClusterId",
+            ]
+        )
 
     def action_save(
         self,
@@ -266,16 +265,17 @@ class Peacock(App):
         hostname_job = htcondor.Submit(job)
         try:
             schedd_return: int = self.schedd.submit(hostname_job)
-            if schedd_return:
-                self.notify(
-                    f"Error submitting to {name} to the condor queue!\n{schedd_return}",
-                    severity="error",
-                )
-            else:
-                self.notify(f"Submitted to {name} to the condor queue!")
+            # FIXME: This is broken, I don't know what shedd_return is supposed to be lol
+            # if schedd_return:
+            #     self.notify(
+            #         f"Error submitting to {name} to the condor queue!\n{schedd_return}",
+            #         severity="error",
+            #     )
+            # else:
+            self.notify(f"Submitted to \"{name}\" to the condor queue!")
         except Exception as e:
             self.notify(
-                f"Error submitting to {name} to the condor queue!\n{e}",
+                f"Error submitting to \"{name}\" to the condor queue!\n{e}",
                 severity="error",
             )
 
@@ -307,50 +307,6 @@ class Peacock(App):
             with open(peacock_config, "r") as f:
                 config = toml.load(f)
         return config
-
-    # def _get_advanced_options_scroll(self):
-    #     return VerticalScroll(*self._load_yaml(CONDOR_OPTIONS / "advanced_options.yaml"))
-    #
-    # def _get_basic_options_scroll(self):
-    #
-    #     # Try to find the users current conda.sh script
-    #     try:
-    #         conda_sh_path = subprocess.check_output(
-    #             "ls $(conda info --base)/etc/profile.d/conda.sh", shell=True, text=True
-    #         ).strip()
-    #     except subprocess.CalledProcessError as _:
-    #         conda_sh_path = None
-    #
-    #     # Try to find the users current conda environment
-    #     try:
-    #         current_env = subprocess.check_output(["conda", "env", "list"], text=True)
-    #         for line in current_env.splitlines():
-    #             if "*" in line:
-    #                 active_env = line.split()[0]
-    #                 break
-    #         else:
-    #             active_env = "base"
-    #     except subprocess.CalledProcessError as _:
-    #         active_env = None
-    #
-    #     conda_sh_window = EntryWindow(
-    #         hint="conda sh file",
-    #         condor_command="source_file",
-    #         input_type="text",
-    #         value=conda_sh_path,
-    #     )
-    #     conda_env_window = EntryWindow(
-    #         hint="conda environment",
-    #         condor_command="conda_env",
-    #         input_type="text",
-    #         value=active_env,
-    #     )
-    #     return VerticalScroll(
-    #         *(
-    #             self._load_yaml(CONDOR_OPTIONS / "basic_options.yaml")
-    #             # + [conda_sh_window, conda_env_window] # uncomment to add conda options
-    #         )
-    #     )
 
 
 if __name__ == "__main__":
