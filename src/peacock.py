@@ -160,12 +160,20 @@ class Peacock(App):
                     temp_dict = temp_dict.get(sub_key, None)
                     if not temp_dict:
                         self.notify(f"Primary default \"{primary_default_name}\" not found in config file, not using specified defaults", severity="error")
+                        break
                 self.defaults = temp_dict
 
         # if the user specifies a default to use from the command line,
         # prioritize that over the config file primary default
         if len(sys.argv) == 2:
-            defaults = config.get(sys.argv[1], None)
+            sub_dict = sys.argv[1].split(".")
+            temp_dict = config
+            for sub_key in sub_dict:
+                temp_dict = temp_dict.get(sub_key, None)
+                if not temp_dict:
+                    self.notify(f"Default \"{sys.argv[1]}\" not found in config file, not using specified defaults", severity="error")
+                    break
+            defaults = temp_dict
             if defaults:
                 self.defaults = defaults
                 self.notify(f"Using \"{sys.argv[1]}\" defaults")
