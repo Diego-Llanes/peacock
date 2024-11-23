@@ -325,6 +325,9 @@ class Peacock(App):
         return config
 
 
-if __name__ == "__main__":
+def main():
     app = Peacock()
     app.run()
+
+if __name__ == "__main__":
+    main()
