@@ -45,7 +45,6 @@ class BoolValidator(Validator):
 
 
 class EntryWindow(HorizontalGroup):
-
     def __init__(
         self,
         hint: str,
@@ -118,7 +117,6 @@ class EntryWindow(HorizontalGroup):
 
 
 class Peacock(App):
-
     CSS_PATH = "css/peacock.tcss"
 
     BINDINGS = [
@@ -127,7 +125,6 @@ class Peacock(App):
         ("a", "show_tab('advanced')", "advanced"),
         ("s", "save", "save"),
         ("S", "submit", "submit"),
-
     ]
 
     TITLE = "peacock"
@@ -138,12 +135,24 @@ class Peacock(App):
         super().__init__(*args, **kwargs)
         self.theme = "textual-dark"
         self.schedd = htcondor.Schedd()
-        self.basic_options_scroll = VerticalScroll(*self._load_yaml(CONDOR_OPTIONS / "basic_options.yaml"))
-        self.advanced_options_scroll = VerticalScroll(*self._load_yaml(CONDOR_OPTIONS / "advanced_options.yaml"))
+
+        self.basic_options_scroll = VerticalScroll(
+            *self._load_yaml(CONDOR_OPTIONS / "basic_options.yaml")
+        )
+        self.advanced_options_scroll = VerticalScroll(
+            *self._load_yaml(CONDOR_OPTIONS / "advanced_options.yaml")
+        )
+        self.queue_scroll = VerticalScroll(
+            *self.get_queue_state()
+        )
+
         self.header = Header(icon="🦚")
 
         self.defaults = None
         self.config = self._get_config()
+
+    def update_time(self) -> None:
+        self.queue_scroll = self.get_queue_state()
 
     def on_mount(self) -> None:
         config = self.config
@@ -159,9 +168,15 @@ class Peacock(App):
                 for sub_key in sub_dict:
                     temp_dict = temp_dict.get(sub_key, None)
                     if not temp_dict:
-                        self.notify(f"Primary default \"{primary_default_name}\" not found in config file, not using specified defaults", severity="error")
+                        self.notify(
+                            f'Primary default "{primary_default_name}" not found in config file, not using specified defaults',
+                            severity="error",
+                        )
                         break
                 self.defaults = temp_dict
+            elif key == "update_time":
+                self.update_time()
+                self.set_interval(int(value), self.update_time)
 
         # if the user specifies a default to use from the command line,
         # prioritize that over the config file primary default
@@ -171,24 +186,32 @@ class Peacock(App):
             for sub_key in sub_dict:
                 temp_dict = temp_dict.get(sub_key, None)
                 if not temp_dict:
-                    self.notify(f"Default \"{sys.argv[1]}\" not found in config file, not using specified defaults", severity="error")
+                    self.notify(
+                        f'Default "{sys.argv[1]}" not found in config file, not using specified defaults',
+                        severity="error",
+                    )
                     break
             defaults = temp_dict
             if defaults:
                 self.defaults = defaults
-                self.notify(f"Using \"{sys.argv[1]}\" defaults")
+                self.notify(f'Using "{sys.argv[1]}" defaults')
             else:
-                self.notify(f"Default \"{sys.argv[1]}\" not found in config file, not using specified defaults", severity="error")
+                self.notify(
+                    f'Default "{sys.argv[1]}" not found in config file, not using specified defaults',
+                    severity="error",
+                )
         elif len(sys.argv) > 2:
-            self.notify("Too many arguments, ignoring all but the first", severity="error")
+            self.notify(
+                "Too many arguments, ignoring all but the first", severity="error"
+            )
         elif len(sys.argv) == 1 and self.defaults:
-            self.notify(f"Using primary default \"{primary_default_name}\"")
+            self.notify(f'Using primary default "{primary_default_name}"')
 
         if self.defaults:
             for entry_window in chain(
-                    self.basic_options_scroll.children,
-                    self.advanced_options_scroll.children
-                    ):
+                self.basic_options_scroll.children,
+                self.advanced_options_scroll.children,
+            ):
                 if entry_window.condor_command in self.defaults.keys():
                     entry_window.value = self.defaults[entry_window.condor_command]
                     entry_window.update_value()
@@ -200,6 +223,8 @@ class Peacock(App):
                 yield self.basic_options_scroll
             with TabPane("advanced options", id="advanced"):
                 yield self.advanced_options_scroll
+            with TabPane("queue", id="queue"):
+                yield self.queue_scroll
         yield Footer()
 
     def check_logs(self, path: str) -> None:
@@ -207,6 +232,17 @@ class Peacock(App):
         if not path.exists():
             path.parent.mkdir(parents=True, exist_ok=True)
         return str(path.absolute())
+
+    def get_queue_state(self) -> None:
+        return [
+            Label(str(row), id="queue_entry") for row in self.schedd.query(
+                projection=[
+                    "Owner",
+                    "JobStatus",
+                    "ClusterId",
+                ]
+            )
+        ]
 
     def action_save(
         self,
@@ -216,9 +252,9 @@ class Peacock(App):
         name = name if name else "condor"
         with open(f"{name}.job", "w") as f:
             for entry_window in chain(
-                    self.basic_options_scroll.children,
-                    self.advanced_options_scroll.children
-                    ):
+                self.basic_options_scroll.children,
+                self.advanced_options_scroll.children,
+            ):
                 if entry_window.value:
                     f.write(f"{entry_window.condor_command}={entry_window.value}\n")
         self.notify(f"Saved to {name}.job")
@@ -229,10 +265,8 @@ class Peacock(App):
         name = name if name else "condor"
         job = {}
         for entry_window in chain(
-                self.basic_options_scroll.children,
-                self.advanced_options_scroll.children
-                ):
-
+            self.basic_options_scroll.children, self.advanced_options_scroll.children
+        ):
             # HACK: maybe remove the defualt value from the basic options so
             # we dont have to check for it here
             if entry_window.condor_command in ["log", "output", "error"]:
@@ -245,11 +279,17 @@ class Peacock(App):
         try:
             schedd_return: int = self.schedd.submit(hostname_job)
             if schedd_return:
-                self.notify(f"Error submitting to {name} to the condor queue!\n{schedd_return}", severity="error")
+                self.notify(
+                    f"Error submitting to {name} to the condor queue!\n{schedd_return}",
+                    severity="error",
+                )
             else:
                 self.notify(f"Submitted to {name} to the condor queue!")
         except Exception as e:
-            self.notify(f"Error submitting to {name} to the condor queue!\n{e}", severity="error")
+            self.notify(
+                f"Error submitting to {name} to the condor queue!\n{e}",
+                severity="error",
+            )
 
     def action_show_tab(self, tab: str) -> None:
         """Switch to a new tab."""
@@ -271,7 +311,9 @@ class Peacock(App):
                 )
         return entry_windows
 
-    def _get_config(self,) -> None:
+    def _get_config(
+        self,
+    ) -> None:
         peacock_config = Path.home() / ".config/peacock/config.toml"
         if peacock_config.exists():
             with open(peacock_config, "r") as f:
