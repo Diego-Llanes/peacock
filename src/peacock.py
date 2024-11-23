@@ -227,12 +227,6 @@ class Peacock(App):
                 yield self.queue_scroll
         yield Footer()
 
-    def check_logs(self, path: str) -> None:
-        path = Path(path)
-        if not path.exists():
-            path.parent.mkdir(parents=True, exist_ok=True)
-        return str(path.absolute())
-
     def get_queue_state(self) -> None:
         return [
             Label(str(row), id="queue_entry") for row in self.schedd.query(
@@ -267,12 +261,6 @@ class Peacock(App):
         for entry_window in chain(
             self.basic_options_scroll.children, self.advanced_options_scroll.children
         ):
-            # HACK: maybe remove the defualt value from the basic options so
-            # we dont have to check for it here
-            if entry_window.condor_command in ["log", "output", "error"]:
-                abs_path = self.check_logs(entry_window.value)
-                job[entry_window.condor_command] = abs_path
-
             if entry_window.value:
                 job[entry_window.condor_command] = str(entry_window.value)
         hostname_job = htcondor.Submit(job)
