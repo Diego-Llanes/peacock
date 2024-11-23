@@ -8,6 +8,8 @@ from typing import Literal, List, Dict
 from pathlib import Path
 import subprocess
 import yaml
+import toml
+import sys
 from itertools import chain
 
 import htcondor
@@ -131,10 +133,41 @@ class Peacock(App):
         super().__init__(*args, **kwargs)
         self.theme = "textual-dark"
         self.schedd = htcondor.Schedd()
-        self.basic_options_scroll = self._get_basic_options_scroll()
-        self.advanced_options_scroll = self._get_advanced_options_scroll()
-
+        self.basic_options_scroll = VerticalScroll(*self._load_yaml(CONDOR_OPTIONS / "basic_options.yaml"))
+        self.advanced_options_scroll = VerticalScroll(*self._load_yaml(CONDOR_OPTIONS / "advanced_options.yaml"))
         self.header = Header(icon="🦚")
+
+        self.defaults = None
+        config = self._get_config()
+
+        for key, value in config.items():
+            if key == "theme":
+                self.theme = f"textual-{value}"
+            elif key == "primary_default":
+                self.defaults = config.get(value, None)
+                if not self.defaults:
+                    self.notify(f"Primary default \"{value}\" not found in config file, not using specified defaults", severity="error")
+
+        # if the user specifies a default to use from the command line,
+        # prioritize that over the config file primary default
+        if len(sys.argv) == 2:
+            defaults = config.get(sys.argv[1], None)
+            if defaults:
+                self.defaults = defaults
+                self.notify(f"Using \"{sys.argv[1]}\" defaults")
+            else:
+                self.notify(f"Default \"{sys.argv[1]}\" not found in config file, not using specified defaults", severity="error")
+        elif len(sys.argv) > 2:
+            self.notify("Too many arguments, ignoring all but the first", severity="error")
+
+        # FIXME: for some reason the chain of these two is empty
+        if self.defaults:
+            for entry_window in chain(
+                    self.basic_options_scroll.children,
+                    self.advanced_options_scroll.children
+                    ):
+                if entry_window.condor_command in self.defaults.keys():
+                    entry_window.value = self.defaults[entry_window.condor_command]
 
     def compose(self) -> ComposeResult:
         yield self.header
@@ -214,49 +247,56 @@ class Peacock(App):
                 )
         return entry_windows
 
-    def _get_advanced_options_scroll(self):
-        return VerticalScroll(*self._load_yaml(CONDOR_OPTIONS / "advanced_options.yaml"))
+    def _get_config(self,) -> None:
+        peacock_config = Path.home() / ".config/peacock/config.toml"
+        if peacock_config.exists():
+            with open(peacock_config, "r") as f:
+                config = toml.load(f)
+        return config
 
-    def _get_basic_options_scroll(self):
-
-        # Try to find the users current conda.sh script
-        try:
-            conda_sh_path = subprocess.check_output(
-                "ls $(conda info --base)/etc/profile.d/conda.sh", shell=True, text=True
-            ).strip()
-        except subprocess.CalledProcessError as _:
-            conda_sh_path = None
-
-        # Try to find the users current conda environment
-        try:
-            current_env = subprocess.check_output(["conda", "env", "list"], text=True)
-            for line in current_env.splitlines():
-                if "*" in line:
-                    active_env = line.split()[0]
-                    break
-            else:
-                active_env = "base"
-        except subprocess.CalledProcessError as _:
-            active_env = None
-
-        conda_sh_window = EntryWindow(
-            hint="conda sh file",
-            condor_command="source_file",
-            input_type="text",
-            value=conda_sh_path,
-        )
-        conda_env_window = EntryWindow(
-            hint="conda environment",
-            condor_command="conda_env",
-            input_type="text",
-            value=active_env,
-        )
-        return VerticalScroll(
-            *(
-                self._load_yaml(CONDOR_OPTIONS / "basic_options.yaml")
-                # + [conda_sh_window, conda_env_window] # uncomment to add conda options
-            )
-        )
+    # def _get_advanced_options_scroll(self):
+    #     return VerticalScroll(*self._load_yaml(CONDOR_OPTIONS / "advanced_options.yaml"))
+    #
+    # def _get_basic_options_scroll(self):
+    #
+    #     # Try to find the users current conda.sh script
+    #     try:
+    #         conda_sh_path = subprocess.check_output(
+    #             "ls $(conda info --base)/etc/profile.d/conda.sh", shell=True, text=True
+    #         ).strip()
+    #     except subprocess.CalledProcessError as _:
+    #         conda_sh_path = None
+    #
+    #     # Try to find the users current conda environment
+    #     try:
+    #         current_env = subprocess.check_output(["conda", "env", "list"], text=True)
+    #         for line in current_env.splitlines():
+    #             if "*" in line:
+    #                 active_env = line.split()[0]
+    #                 break
+    #         else:
+    #             active_env = "base"
+    #     except subprocess.CalledProcessError as _:
+    #         active_env = None
+    #
+    #     conda_sh_window = EntryWindow(
+    #         hint="conda sh file",
+    #         condor_command="source_file",
+    #         input_type="text",
+    #         value=conda_sh_path,
+    #     )
+    #     conda_env_window = EntryWindow(
+    #         hint="conda environment",
+    #         condor_command="conda_env",
+    #         input_type="text",
+    #         value=active_env,
+    #     )
+    #     return VerticalScroll(
+    #         *(
+    #             self._load_yaml(CONDOR_OPTIONS / "basic_options.yaml")
+    #             # + [conda_sh_window, conda_env_window] # uncomment to add conda options
+    #         )
+    #     )
 
 
 if __name__ == "__main__":
