@@ -154,7 +154,6 @@ class Peacock(App):
     def watch_queue(self) -> None:
         queue_tab = self.query_one("#queue", VerticalScroll)
 
-
         # TODO: In the future, we should not remove it if it's the same job
         for child in list(queue_tab.children):
             child.remove()
@@ -164,8 +163,6 @@ class Peacock(App):
 
         for job in self.queue:
             queue_tab.mount(Label(",".join(f"{k}: {v}" for k, v in job.items())))
-
-
 
     def update_time(self) -> None:
         self.queue = self.get_queue_state()
@@ -326,8 +323,21 @@ class Peacock(App):
 
 
 def main():
-    app = Peacock()
-    app.run()
+    if len(sys.argv) > 1 and sys.argv[1] == "--help":
+        print(
+            "Usage:\n",
+            "\tpeacock [default]\n\n",
+            "default:\n",
+            "\tThe default values to use from the config file, help on configuring this is in the config files.\n",
+            "Example:\n",
+            "\tpeacock primary_default\n",
+            "\nIf no default is specified, the primary default from the config file will be used.",
+            sep="",
+        )
+    else:
+        app = Peacock()
+        app.run()
+
 
 if __name__ == "__main__":
     main()
