@@ -145,6 +145,12 @@ class Peacock(App):
                 yield self.advanced_options_scroll
         yield Footer()
 
+    def check_logs(self, path: str) -> None:
+        path = Path(path)
+        if not path.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+        return str(path.absolute())
+
     def action_save(
         self,
     ) -> None:
@@ -169,14 +175,24 @@ class Peacock(App):
                 self.basic_options_scroll.children,
                 self.advanced_options_scroll.children
                 ):
+
+            # HACK: maybe remove the defualt value from the basic options so
+            # we dont have to check for it here
+            if entry_window.condor_command in ["log", "output", "error"]:
+                abs_path = self.check_logs(entry_window.value)
+                job[entry_window.condor_command] = abs_path
+
             if entry_window.value:
                 job[entry_window.condor_command] = str(entry_window.value)
         hostname_job = htcondor.Submit(job)
-        schedd_return: int = self.schedd.submit(hostname_job)
-        if schedd_return:
-            self.notify(f"Error submitting to {name} to the condor queue!")
-        else:
-            self.notify(f"Submitted to {name} to the condor queue!")
+        try:
+            schedd_return: int = self.schedd.submit(hostname_job)
+            if schedd_return:
+                self.notify(f"Error submitting to {name} to the condor queue!\n{schedd_return}", severity="error")
+            else:
+                self.notify(f"Submitted to {name} to the condor queue!")
+        except Exception as e:
+            self.notify(f"Error submitting to {name} to the condor queue!\n{e}", severity="error")
 
     def action_show_tab(self, tab: str) -> None:
         """Switch to a new tab."""
