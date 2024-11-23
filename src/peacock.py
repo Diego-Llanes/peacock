@@ -152,13 +152,20 @@ class Peacock(App):
         self.config = self._get_config()
 
     def watch_queue(self) -> None:
-        """Update the queue UI when `queue` changes."""
         queue_tab = self.query_one("#queue", VerticalScroll)
+
+
         # TODO: In the future, we should not remove it if it's the same job
         for child in list(queue_tab.children):
             child.remove()
+
+        if not self.queue:
+            queue_tab.mount(Label("No jobs in queue"))
+
         for job in self.queue:
             queue_tab.mount(Label(",".join(f"{k}: {v}" for k, v in job.items())))
+
+
 
     def update_time(self) -> None:
         self.queue = self.get_queue_state()
@@ -236,11 +243,6 @@ class Peacock(App):
                 yield VerticalScroll(
                     *[Label("Loading queue...")], id="queue"  # Default placeholder
                 )
-            # with TabPane("queue", id="queue_tab"):
-            #     yield VerticalScroll(
-            #         *[Label(",".join([f"{k}: {v}" for k,v in job.items()])) for job in self.queue],
-            #         id="queue"
-            #     )
         yield Footer()
 
     def get_queue_state(self) -> None:
@@ -295,7 +297,6 @@ class Peacock(App):
             )
 
     def action_show_tab(self, tab: str) -> None:
-        """Switch to a new tab."""
         self.get_child_by_type(TabbedContent).active = tab
 
     def _load_yaml(self, file: str) -> List[Dict[str, str]]:
