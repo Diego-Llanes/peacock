@@ -37,6 +37,56 @@ class BoolValidator(Validator):
         )
 
 
+class QueuePage(VerticalScroll):
+
+    queue: reactive[List[Dict[str, str]]] = reactive(lambda: [{}])
+
+    def __init__(self, update_time: int, schedd: htcondor.Schedd) -> None:
+        super().__init__()
+        self.update_time = update_time
+        self.schedd = schedd
+        self._jobs = self.get_queue_state()
+        self.table_header = HorizontalGroup(
+            *[Label(key, classes="q_box") for key in self._jobs[0].keys()]
+        )
+        self.queue_scroll = VerticalScroll(Label("No jobs in the queue"), id="queue")
+
+    def compose(self) -> ComposeResult:
+        yield self.table_header
+        if self.queue:
+            for job in self.queue:
+                yield HorizontalGroup(*[Label(job[key], classes="q_box") for key in job.keys()])
+        else:
+            yield Label("No jobs in the queue")
+
+    def watch_queue(self) -> None:
+        try:
+            queue_tab = self.get_child_by_id("queue")
+            queue_tab.clear()
+            queue_tab.mount(self.table_header)
+            for job in self.queue:
+                queue_tab.mount(
+                    HorizontalGroup(*[Label(job[key], classes="q_box") for key in job.keys()])
+                )
+        except Exception as e:
+            self.notify(
+                f"Error updating the queue page\n{e}",
+                severity="error",
+            )
+
+    def get_queue_state(self) -> None:
+        return self.schedd.query(
+            projection=[
+                "Owner",
+                "JobStatus",
+                "ClusterId",
+            ]
+        )
+
+    def update_time(self) -> None:
+        self.queue = self.get_queue_state()
+
+
 class EntryWindow(HorizontalGroup):
     def __init__(
         self,
@@ -113,9 +163,10 @@ class Peacock(App):
     CSS_PATH = "css/peacock.tcss"
 
     BINDINGS = [
-        ("q", "quit", "Quit"),
+        ("Q", "quit", "Quit"),
         ("b", "show_tab('basic')", "basic"),
         ("a", "show_tab('advanced')", "advanced"),
+        ("q", "show_tab('queue')", "queue"),
         ("s", "save", "save"),
         ("S", "submit", "submit"),
     ]
@@ -123,8 +174,6 @@ class Peacock(App):
     TITLE = "peacock"
 
     NOTIFICATION_TIMEOUT = 5
-
-    queue: reactive[List[Dict[str, str]]] = reactive(lambda: [{}])
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -142,22 +191,11 @@ class Peacock(App):
 
         self.defaults = None
         self.config = self._get_config()
-
-    def watch_queue(self) -> None:
-        queue_tab = self.query_one("#queue", VerticalScroll)
-
-        # TODO: In the future, we should not remove it if it's the same job
-        for child in list(queue_tab.children):
-            child.remove()
-
-        if not self.queue:
-            queue_tab.mount(Label("No jobs in queue"))
-
-        for job in self.queue:
-            queue_tab.mount(Label(",".join(f"{k}: {v}" for k, v in job.items())))
+        self.queue_page = QueuePage(self.config.get("update_time", 5), self.schedd)
 
     def update_time(self) -> None:
-        self.queue = self.get_queue_state()
+        # assert -1 == 1, "TODO: call update on the queue page"
+        pass
 
     def on_mount(self) -> None:
         config = self.config
@@ -228,20 +266,9 @@ class Peacock(App):
                 yield self.basic_options_scroll
             with TabPane("advanced options", id="advanced"):
                 yield self.advanced_options_scroll
-            with TabPane("queue", id="queue_tab"):
-                yield VerticalScroll(
-                    *[Label("Loading queue...")], id="queue"  # Default placeholder
-                )
+            with TabPane("queue", id="queue"):
+                yield self.queue_page
         yield Footer()
-
-    def get_queue_state(self) -> None:
-        return self.schedd.query(
-            projection=[
-                "Owner",
-                "JobStatus",
-                "ClusterId",
-            ]
-        )
 
     def action_save(
         self,

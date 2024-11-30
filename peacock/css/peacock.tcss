@@ -8,12 +8,21 @@ EntryWindow {
 }
 
 #prompt {
-	width: 0.5fr;
+	width: 1fr;
 }
 
 #value {
-	width: 0.5fr;
+	width: 1fr;
 	# align: center middle;
+	text-align: center;
+}
+
+.q_box {
+	height: 0.25fr;
+    width: 1fr;
+    border: solid green;
+    padding: 1;
+    align: center middle;
 	text-align: center;
 }
 
