@@ -21,10 +21,6 @@ CONDOR_OPTIONS = Path(__file__).parent / "condor_options"
 
 class FileValidator(Validator):
     def validate(self, x: str) -> ValidationResult:
-        """
-        I hate that I can't just use a lambda lol
-        #OOP_Gang
-        """
         return (
             self.success()
             if Path(x).exists()
@@ -34,10 +30,6 @@ class FileValidator(Validator):
 
 class BoolValidator(Validator):
     def validate(self, x: str) -> ValidationResult:
-        """
-        I hate that I can't just use a lambda lol
-        #OOP_Gang
-        """
         return (
             self.success()
             if x.lower() in ["true", "false", "1", "0", "t", "f"]
