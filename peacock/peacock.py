@@ -43,7 +43,7 @@ class QueuePage(VerticalScroll):
 
     def __init__(self, update_time: int, schedd: htcondor.Schedd) -> None:
         super().__init__()
-        self.update_time = update_time
+        self.refresh_rate = update_time
         self.schedd = schedd
         self._jobs = self.get_queue_state()
         self.table_header = HorizontalGroup(
@@ -51,22 +51,33 @@ class QueuePage(VerticalScroll):
         )
         self.queue_scroll = VerticalScroll(Label("No jobs in the queue"), id="queue")
 
+    def on_mount(self) -> None:
+        self.mount(self.queue_scroll)
+        self.set_interval(self.refresh_rate, self.update_time)
+
     def compose(self) -> ComposeResult:
         yield self.table_header
-        if self.queue:
-            for job in self.queue:
-                yield HorizontalGroup(*[Label(job[key], classes="q_box") for key in job.keys()])
-        else:
-            yield Label("No jobs in the queue")
+        yield Label("No jobs in the queue", id="no_jobs")
 
     def watch_queue(self) -> None:
+
+        try:
+            no_jobs = self.get_child_by_id("no_jobs")
+            no_jobs.remove()
+        except Exception as e:
+            pass
+
         try:
             queue_tab = self.get_child_by_id("queue")
-            queue_tab.clear()
+
+            for child in queue_tab.children:
+                child.remove()
             queue_tab.mount(self.table_header)
             for job in self.queue:
                 queue_tab.mount(
-                    HorizontalGroup(*[Label(job[key], classes="q_box") for key in job.keys()])
+                    HorizontalGroup(
+                        *[Label(str(job[key]), classes="q_box") for key in job.keys()]
+                    )
                 )
         except Exception as e:
             self.notify(
@@ -191,7 +202,12 @@ class Peacock(App):
 
         self.defaults = None
         self.config = self._get_config()
-        self.queue_page = QueuePage(self.config.get("update_time", 5), self.schedd)
+
+        # Get the queue page with a defualt update time of 5 seconds
+        self.queue_page = QueuePage(
+            self.config.get("update_time", 5),
+            self.schedd,
+        )
 
     def update_time(self) -> None:
         # assert -1 == 1, "TODO: call update on the queue page"
