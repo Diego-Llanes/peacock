@@ -34,7 +34,7 @@ In this file you will create categories of "environments" that specify what the 
 These categories can have subcategories for example you could have a group called `projects` that has a project named `diff` and another named `llm`.
 An example of what this file might look like is:
 ```toml
-theme = "tokyonight"
+theme = "monokai"
 primary_default = "projects.diff"
 update_time = 1
 

@@ -16,4 +16,5 @@ setup(
             "peacock=peacock.peacock:main",
         ],
     },
+    install_requires=["textual", "textual-dev", "toml", "htcondor"],
 )
