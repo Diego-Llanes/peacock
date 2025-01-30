@@ -162,7 +162,8 @@ class Peacock(App):
             queue_tab.mount(Label("No jobs in queue"))
 
         for job in self.queue:
-            queue_tab.mount(Label(",".join(f"{k}: {v}" for k, v in job.items())))
+            queue_tab.mount(
+                Label(",".join(f"{k}: {v}" for k, v in job.items())))
 
     def update_time(self) -> None:
         self.queue = self.get_queue_state()
@@ -238,7 +239,8 @@ class Peacock(App):
                 yield self.advanced_options_scroll
             with TabPane("queue", id="queue_tab"):
                 yield VerticalScroll(
-                    *[Label("Loading queue...")], id="queue"  # Default placeholder
+                    # Default placeholder
+                    *[Label("Loading queue...")], id="queue"
                 )
         yield Footer()
 
@@ -263,7 +265,8 @@ class Peacock(App):
                 self.advanced_options_scroll.children,
             ):
                 if entry_window.value:
-                    f.write(f"{entry_window.condor_command}={entry_window.value}\n")
+                    f.write(
+                        f"{entry_window.condor_command}={entry_window.value}\n")
         self.notify(f"Saved to {name}.job")
 
     def action_submit(self) -> None:
@@ -319,6 +322,13 @@ class Peacock(App):
         if peacock_config.exists():
             with open(peacock_config, "r") as f:
                 config = toml.load(f)
+        else:
+            self.notify(
+                "See README for help on configuration.",
+                title="No config file found",
+                severity="warning",
+            )
+            config = {}
         return config
 
 
