@@ -35,20 +35,28 @@ These categories can have subcategories for example you could have a group calle
 An example of what this file might look like is:
 ```toml
 theme = "monokai"
-primary_default = "projects.diff"
+primary_default = "hello_world"
 update_time = 1
+
+[hello_world]
+batch_name = "hello"
+executable = "tests/hello.py"
+num_cpus = 1
+output = "logs/out.$(clusterid).$(procid).txt"
+error = "logs/err.$(clusterid).$(procid).txt"
+log = "logs/log.$(clusterid).$(procid).txt"
 
 [projects]
 
 [projects.diff]
 batch_name = "diff"
 executable = "tests/diff.py"
-universe = vanilla
+num_gpus = 4
 
 [projects.llm]
 batch_name = "llm"
 executable = "tests/llm.py"
-universe = java
+num_gpus = 0
 ```
 
 ## Selecting Default Profiles
